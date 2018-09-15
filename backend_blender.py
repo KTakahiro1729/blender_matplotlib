@@ -4,7 +4,6 @@ except:
     print("bpy not found")
 
 from collections import OrderedDict
-import six
 import os
 import numpy as np
 from matplotlib import __version__, cbook
@@ -17,7 +16,7 @@ def renderer2nparray(renderer):
     height, width = map(int,(renderer.height, renderer.width))
 
     buffer = renderer.buffer_rgba()
-    nparray = np.frombuffer(buffer, dtype = np.uint8)/255
+    nparray = np.frombuffer(buffer, dtype = np.uint8)/256
     channels = nparray.size//(width*height)
     nparray = nparray.reshape(height, width, channels)
 
@@ -33,18 +32,28 @@ def nparray2blenderimg(nparray, filename):
 
     return b_img
 
-def write_png(renderer, fh, dpi, metadata):
+def write_png(renderer, fh, dpi=None, metadata=None):
 
     # get filename and close file (open later)
     if hasattr(fh, "name"):
         filename = fh.name
         fh.close()
+        fh_reopen = True
+    elif isinstance(fh,str):
+        filename = fh
+        fh_reopen = False
     else:
         print(fh)
         raise ValueError("Failed to determine filename.")
 
     # generate blender image
-    nparray = renderer2nparray(renderer)
+
+    if isinstance(renderer, np.ndarray):
+        nparray = renderer
+        if nparray.dtype in [np.uint8, int]:
+            nparray = nparray / 256
+    else:
+        nparray = renderer2nparray(renderer)
     b_img = nparray2blenderimg(nparray, filename)
 
     # resolve filename_or_obj
@@ -63,7 +72,8 @@ def write_png(renderer, fh, dpi, metadata):
     bpy.data.images.remove(b_img)
 
     # reopen file
-    fh = cbook.open_file_cm(filename, "ab")
+    if fh_reopen:
+        fh = cbook.open_file_cm(filename, "ab")
     return fh
 
 def show_blender(renderer):
@@ -112,6 +122,10 @@ class FigureCanvasBlender(FigureCanvasAgg):
 class FigureManagerBlender(FigureManagerBase):
     def show(self):
         pass
+
+
+
+
 
 def show(block=None):
     for manager in Gcf.get_all_fig_managers():

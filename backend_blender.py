@@ -8,9 +8,11 @@ import six
 import os
 import numpy as np
 from matplotlib import __version__, cbook
-from matplotlib.backend_bases import FigureCanvasBase, FigureManagerBase, _Backend
+from matplotlib.backend_bases import FigureCanvasBase, FigureManagerBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg, RendererAgg
 
+from matplotlib._pylab_helpers import Gcf
+from matplotlib.figure import Figure
 def renderer2nparray(renderer):
     height, width = map(int,(renderer.height, renderer.width))
 
@@ -26,7 +28,6 @@ def nparray2blenderimg(nparray, filename):
     alpha = False if c == 3 else True
     b_img = bpy.data.images.new(filename, alpha=alpha, width = w,height = h)
 
-    print(nparray.shape)
     nparray = np.flip(nparray, axis = 0).flatten()
     b_img.pixels = nparray
 
@@ -66,8 +67,6 @@ def write_png(renderer, fh, dpi, metadata):
     return fh
 
 def show_blender(renderer):
-    print(renderer)
-
     nparray = renderer2nparray(renderer)
     b_img = nparray2blenderimg(nparray, "plt_show")
 
@@ -109,14 +108,31 @@ class FigureCanvasBlender(FigureCanvasAgg):
                                self.figure.dpi, metadata=metadata)
         finally:
             renderer.dpi = original_dpi
+
 class FigureManagerBlender(FigureManagerBase):
     def show(self):
-        self.canvas.show()
-
-@_Backend.export
-class _BackendBlender(_Backend):
-    FigureCanvas = FigureCanvasBlender
-    FigureManager = FigureManagerBlender
-    @classmethod
-    def mainloop(cls):
         pass
+
+def show(block=None):
+    for manager in Gcf.get_all_fig_managers():
+        # do something to display the GUI
+        manager.canvas.show()
+
+
+def new_figure_manager(num, *args, **kwargs):
+    FigureClass = kwargs.pop('FigureClass', Figure)
+    thisFig = FigureClass(*args, **kwargs)
+    return new_figure_manager_given_figure(num, thisFig)
+
+
+def new_figure_manager_given_figure(num, figure):
+    """
+    Create a new figure manager instance for the given figure.
+    """
+    # May be implemented via the `_new_figure_manager_template` helper.
+    canvas = FigureCanvasBlender(figure)
+    manager = FigureManagerBlender(canvas, num)
+    return manager
+
+FigureCanvas = FigureCanvasBlender
+FigureManager = FigureManagerBlender

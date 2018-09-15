@@ -11,24 +11,6 @@ from matplotlib import __version__, cbook
 from matplotlib.backend_bases import FigureCanvasBase, FigureManagerBase, _Backend
 from matplotlib.backends.backend_agg import FigureCanvasAgg, RendererAgg
 
-def write_png(renderer, fh, dpi, metadata):
-
-    # get filename and close file (open later)
-    if hasattr(fh, "name"):
-        filename = fh.name
-        fh.close()
-    else:
-        print(fh)
-        raise ValueError("Failed to determine filename.")
-    nparray = renderer2nparray(renderer)
-
-    nparray2blender(nparray, filename)
-
-    # reopen file
-    fh = cbook.open_file_cm(filename, "ab")
-    return fh
-
-
 def renderer2nparray(renderer):
     height, width = map(int,(renderer.height, renderer.width))
 
@@ -39,24 +21,75 @@ def renderer2nparray(renderer):
 
     return nparray
 
-def nparray2blender(nparray, filename):
+def nparray2blenderimg(nparray, filename):
     h, w, c = nparray.shape
     alpha = False if c == 3 else True
-    b_img = bpy.data.images.new(filename+"saved", alpha=alpha, width = w,height = h)
+    b_img = bpy.data.images.new(filename, alpha=alpha, width = w,height = h)
 
+    print(nparray.shape)
     nparray = np.flip(nparray, axis = 0).flatten()
     b_img.pixels = nparray
+
+    return b_img
+
+def write_png(renderer, fh, dpi, metadata):
+
+    # get filename and close file (open later)
+    if hasattr(fh, "name"):
+        filename = fh.name
+        fh.close()
+    else:
+        print(fh)
+        raise ValueError("Failed to determine filename.")
+
+    # generate blender image
+    nparray = renderer2nparray(renderer)
+    b_img = nparray2blenderimg(nparray, filename)
+
+    # resolve filename_or_obj
     if os.path.isabs(filename):
         b_img.filepath_raw = filename
     else:
         b_img.filepath_raw = "//" + bpy.path.basename(filename)
 
+    # set as png
     b_img.file_format = "PNG"
+
+
+
+    # save and delete
     b_img.save()
     bpy.data.images.remove(b_img)
 
+    # reopen file
+    fh = cbook.open_file_cm(filename, "ab")
+    return fh
+
+def show_blender(renderer):
+    print(renderer)
+
+    nparray = renderer2nparray(renderer)
+    b_img = nparray2blenderimg(nparray, "plt_show")
+
+    # set as active image
+
+    ## find area to set image as active
+    image_area = None
+    if bpy.context.area.type =="IMAGE_EDITOR":
+        image_area = bpy.context.area
+    else:
+        for area in bpy.context.screen.areas:
+            if area.type == "IMAGE_EDITOR":
+                image_area = area
+
+    if image_area is not None:
+        image_area.spaces.active.image = b_img
 
 class FigureCanvasBlender(FigureCanvasAgg):
+    def show(self):
+        FigureCanvasAgg.draw(self)
+        show_blender(self.get_renderer())
+
     def print_png(self, filename_or_obj, *args, **kwargs):
         FigureCanvasAgg.draw(self)
         renderer = self.get_renderer()
@@ -76,8 +109,14 @@ class FigureCanvasBlender(FigureCanvasAgg):
                                self.figure.dpi, metadata=metadata)
         finally:
             renderer.dpi = original_dpi
+class FigureManagerBlender(FigureManagerBase):
+    def show(self):
+        self.canvas.show()
 
 @_Backend.export
-class _BackendAgg(_Backend):
+class _BackendBlender(_Backend):
     FigureCanvas = FigureCanvasBlender
-    FigureManager = FigureManagerBase
+    FigureManager = FigureManagerBlender
+    @classmethod
+    def mainloop(cls):
+        pass

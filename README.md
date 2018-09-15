@@ -1,8 +1,8 @@
 # blender_matplotlib
-matplotlib backend for blender
-
+matplotlib backend for blender (`backend_blender.py`)
 ![sample.blend](./resources/bpyplot_ss.png)
 
+if you're curious about `bpyplot.py` or if you want to try `plt.imsave`, read the [Known Limitations](#known-limitations).
 # dependencies
 - numpy version should be over 0.14.
 - matploblib should be downloaded with its dependencies.
@@ -12,7 +12,7 @@ Above should be installed into the python packed with blender. To use pip for th
 # how to use
 ## import
 
-Place this file as a library of blender. This can be done by using the add-on importer.
+Place `backend_blender.py` as a library of blender. This can be done by using the add-on importer.
 
 ## use matplotlib.use
 
@@ -47,3 +47,25 @@ plt.ylabel('Undamped')
 
 plt.show()
 ```
+
+# Known Limitations
+## plt.imsave() causes errors
+`plt.imsave` causes errors even when `plt.savefig` works fine. There seems to be no way to remove this error with a simple backend. In order to use such functions, import `bpyplot.py` as `plt`, in this repository, instead of `matplotlib.pyplot`.
+
+ You should be able to use other functions in `pyplot`.
+
+ ```python
+import matplotlib
+matplotlib.use("module://backend_blender")
+
+import matploblib.pyplot as plt
+plt.plot([1,2,3],[1,2,3])     # works
+plt.imsave("temp.png", [[1]]) # fails
+
+import matploblib.bpyplot as plt
+plt.plot([1,2,3],[1,2,3])     # should work
+plt.imsave("temp.png", [[1]]) # work
+```
+
+## plt.show() accumulates
+`plt.show()` won't automatically close the already-rendered-image which sometimes causes problems such as strange sizes. This may change in the future, but for now, use `plt.close()` as a work around.

@@ -115,7 +115,6 @@ class FigureManagerBlender(FigureManagerBase):
 
 def show(block=None):
     for manager in Gcf.get_all_fig_managers():
-        # do something to display the GUI
         manager.canvas.show()
 
 
@@ -126,10 +125,6 @@ def new_figure_manager(num, *args, **kwargs):
 
 
 def new_figure_manager_given_figure(num, figure):
-    """
-    Create a new figure manager instance for the given figure.
-    """
-    # May be implemented via the `_new_figure_manager_template` helper.
     canvas = FigureCanvasBlender(figure)
     manager = FigureManagerBlender(canvas, num)
     return manager
